@@ -38,7 +38,7 @@ class HashingEmbeddingFunction(EmbeddingFunction):
     def __init__(self, dim: int = 256) -> None:
         self.dim = dim
 
-    def __call__(self, input: Documents) -> Embeddings:  # noqa: A002
+    def __call__(self, input: Documents) -> Embeddings:
         return [self._embed(text) for text in input]
 
     def _embed(self, text: str) -> list[float]:
@@ -57,7 +57,7 @@ class HashingEmbeddingFunction(EmbeddingFunction):
         return {"dim": self.dim}
 
     @staticmethod
-    def build_from_config(config: dict) -> "HashingEmbeddingFunction":
+    def build_from_config(config: dict) -> HashingEmbeddingFunction:
         return HashingEmbeddingFunction(dim=config.get("dim", 256))
 
 
@@ -90,7 +90,9 @@ def get_collection():
     ef = default_embedding_function()
     if ef is None:
         return get_client().get_or_create_collection(settings.collection_name)
-    return get_client().get_or_create_collection(settings.collection_name, embedding_function=ef)
+    return get_client().get_or_create_collection(
+        settings.collection_name, embedding_function=ef
+    )
 
 
 def _split_file(path: Path, text: str) -> list[str]:

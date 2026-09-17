@@ -6,13 +6,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="RAG_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="RAG_", env_file=".env", extra="ignore"
+    )
 
     # --- Ollama ---
     # По умолчанию host.docker.internal — чтобы контейнер ходил в Ollama на хосте.
     ollama_host: str = "http://host.docker.internal:11434"
     llm_model: str = "qwen2.5:3b"
-    # Опциональные эмбеддинги через Ollama. Если пусто — используются встроенные ChromaDB.
+    # Опциональные эмбеддинги через Ollama. Пусто — встроенные ChromaDB.
     embed_model: str = ""
 
     # --- Хранилище / индексация ---
