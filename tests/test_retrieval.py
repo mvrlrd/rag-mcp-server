@@ -22,7 +22,9 @@ def test_find_relevant_docs_empty_collection(collection):
 
 def test_find_relevant_docs_returns_ranked_chunks(sample_docs, collection):
     indexer.index_folder(str(sample_docs), collection=collection)
-    hits = retrieval.find_relevant_docs("бюджет попугаев Гидра", top_k=3, collection=collection)
+    hits = retrieval.find_relevant_docs(
+        "бюджет попугаев Гидра", top_k=3, collection=collection
+    )
     assert hits
     assert len(hits) <= 3
     # Результаты отсортированы по убыванию RRF-скора.
@@ -32,7 +34,9 @@ def test_find_relevant_docs_returns_ranked_chunks(sample_docs, collection):
 
 def test_find_relevant_docs_finds_seeded_fact(sample_docs, collection):
     indexer.index_folder(str(sample_docs), collection=collection)
-    hits = retrieval.find_relevant_docs("42 попугая бюджет", top_k=2, collection=collection)
+    hits = retrieval.find_relevant_docs(
+        "42 попугая бюджет", top_k=2, collection=collection
+    )
     joined = " ".join(h.document for h in hits)
     assert "попуга" in joined.lower()
 
