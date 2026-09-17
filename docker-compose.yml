@@ -1,0 +1,50 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  # Одноразовый сервис: тянет модель по умолчанию после старта ollama.
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "qwen2.5:3b"]
+    restart: "no"
+
+  mcp-server:
+    build: .
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    environment:
+      # Ollama внутри compose. Для host-Ollama см. README (override).
+      RAG_OLLAMA_HOST: http://ollama:11434
+      RAG_LLM_MODEL: qwen2.5:3b
+      RAG_CHROMA_DIR: /data/chroma
+      RAG_MCP_TRANSPORT: streamable-http
+      RAG_MCP_HOST: 0.0.0.0
+      RAG_MCP_PORT: "8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/data/chroma
+    restart: unless-stopped
+
+volumes:
+  ollama_models:
+  chroma_data:
