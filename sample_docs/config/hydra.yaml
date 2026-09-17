@@ -1,0 +1,40 @@
+# Конфигурация платформы Гидра-7 (пример для staging)
+project:
+  codename: hydra-7
+  release: "Аметист 3.14"
+  owner: "Марфа Кузнецова"
+  datacenter: "Тундра-9"
+
+coordinator:
+  # Внутренний порт координатора кластера
+  port: 47281
+  bind: 0.0.0.0
+  backpressure:
+    enabled: true
+    # Порог включения обратного давления, квазаров в секунду
+    threshold_qps: 9000
+    reserve_workers: 4
+
+ingest:
+  collectors: 8
+  max_qps: 9000
+  validation: strict
+
+processing:
+  normalizers: 6
+  aggregators: 4
+  route_by: station_id
+
+storage:
+  retention_days: 90
+  backup:
+    schedule: "0 3 * * *"
+    keep: 14
+
+budget:
+  # Годовой бюджет в условных единицах НИИ «Тундра»
+  annual_parrots: 42
+  incident_reserve_ratio: 0.15
+
+access:
+  prod_confirmation_phrase: "малахитовый барсук"

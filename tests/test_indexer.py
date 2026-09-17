@@ -1,6 +1,10 @@
+from pathlib import Path
+
 import pytest
 
 from rag_mcp import indexer
+
+SAMPLE_DOCS = Path(__file__).resolve().parents[1] / "sample_docs"
 
 
 def test_index_folder_counts_files_and_chunks(sample_docs, collection):
@@ -35,3 +39,13 @@ def test_content_is_searchable(sample_docs, collection):
     indexer.index_folder(str(sample_docs), collection=collection)
     res = collection.query(query_texts=["Гидра бюджет попугай"], n_results=1)
     assert res["documents"][0]
+
+
+def test_sample_docs_index_contains_seeded_fact(collection):
+    stats = indexer.index_folder(str(SAMPLE_DOCS), collection=collection)
+    assert stats["chunks"] > 0
+    got = collection.get(include=["documents"])
+    joined = "\n".join(got["documents"])
+    assert "Гидра-7" in joined
+    assert "Марфа Кузнецова" in joined
+    assert "малахитовый барсук" in joined
