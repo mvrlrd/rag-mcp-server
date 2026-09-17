@@ -121,8 +121,11 @@ def _save_status(stats: dict) -> None:
     path.write_text(json.dumps(stats), encoding="utf-8")
 
 
-def index_folder(path: str, collection=None) -> dict:
-    """Проиндексировать папку с документами. Возвращает статистику индексации."""
+def index_folder(path: str, pattern: str = "**/*", collection=None) -> dict:
+    """Проиндексировать папку с документами. Возвращает статистику индексации.
+
+    ``pattern`` — glob относительно ``path`` (по умолчанию рекурсивно все файлы).
+    """
     root = Path(path)
     if not root.exists():
         raise FileNotFoundError(f"Папка не найдена: {path}")
@@ -135,7 +138,7 @@ def index_folder(path: str, collection=None) -> dict:
     metas: list[dict] = []
     files = 0
 
-    for fp in sorted(root.rglob("*")):
+    for fp in sorted(root.glob(pattern)):
         if not fp.is_file() or fp.suffix.lower() not in SUPPORTED_EXTENSIONS:
             continue
         try:
