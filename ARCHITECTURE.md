@@ -1,7 +1,7 @@
 # Архитектура: RAG Knowledge Base MCP-сервер
 
-Документ описывает архитектуру **до реализации** и служит проектным ориентиром.
-Обновляется по мере уточнения деталей.
+Документ описывает архитектуру проекта. Первоначально написан до кода как проектный
+ориентир, затем актуализирован под финальную реализацию.
 
 ## 1. Цель
 
@@ -13,7 +13,7 @@ MCP-сервер, который индексирует локальную па�
 
 | Слой | Технология | Роль |
 |------|-----------|------|
-| MCP | `FastMCP` | Регистрация инструментов, транспорт stdio |
+| MCP | `FastMCP` | Регистрация инструментов, транспорт `streamable-http` на :8000, путь `/mcp` |
 | Оркестрация | `langgraph` | Граф Corrective RAG с условными переходами |
 | RAG-утилиты | `langchain` | Loaders, text splitters |
 | Векторное хранилище | `chromadb` | Плотный поиск, persist на диск |
@@ -41,7 +41,9 @@ graph/
 
 Агент выбирает инструмент сам по `description`, поэтому описания — содержательные.
 
-1. **`index_folder(path)`** — проиндексировать папку с документами в базу знаний.
+1. **`index_folder(path, pattern="**/*")`** — проиндексировать папку с документами
+   в базу знаний. `pattern` — glob относительно `path` (например `*.md`,
+   `docs/**/*.txt`; по умолчанию рекурсивно все файлы).
 2. **`index_status()`** — статистика индекса: кол-во файлов, чанков, время индексации.
 3. **`find_relevant_docs(query, top_k)`** — гибридный поиск релевантных фрагментов
    **без** генерации ответа (сырые ранжированные чанки + источники).
@@ -100,7 +102,9 @@ class GraphState(TypedDict):
 - Текст → `RecursiveCharacterTextSplitter`; код → сплиттер с учётом языка.
 - Метаданные чанка: `source` (путь), `chunk_index`.
 - ChromaDB с persist-директорией (`RAG_CHROMA_DIR`).
-- Эмбеддинги: встроенные ChromaDB по умолчанию; опционально `nomic-embed-text` через Ollama.
+- Эмбеддинги: встроенные ChromaDB по умолчанию; опционально Ollama-модель через
+  `RAG_EMBED_MODEL`. В тестах — offline `HashingEmbeddingFunction`
+  (детерминированные bag-of-words hashing-эмбеддинги, без обращения к сети).
 
 ## 7. Гибридный поиск + RRF
 
@@ -120,15 +124,28 @@ score(d) = Σ_retrievers 1 / (rrf_k + rank_r(d))
 
 ## 8. Развёртывание
 
-Сценарий «Ollama на хосте» (по договорённости с преподавателем):
-- Преподаватель ставит Ollama и выполняет `ollama pull qwen2.5:3b`.
-- `docker compose up` поднимает только MCP-сервер + том для Chroma persist.
-- Сервер обращается к Ollama по `OLLAMA_HOST`
-  (по умолчанию `http://host.docker.internal:11434`).
+Финальный сценарий — **Ollama внутри compose** (одна команда `docker compose up`):
+- **ollama** — сервис LLM с healthcheck (`ollama list`).
+- **ollama-pull** — одноразовый сервис: тянет `qwen2.5:3b`; `restart: "no"`. MCP-сервер
+  `depends_on` его через `condition: service_completed_successfully` — стартует только
+  после успешного пула модели.
+- **mcp-server** — `depends_on` ollama по `condition: service_healthy`; ходит в LLM по
+  `RAG_OLLAMA_HOST=http://ollama:11434`. Chroma persist — в volume (`RAG_CHROMA_DIR=/data/chroma`).
+- Транспорт `streamable-http`, порт 8000, путь `/mcp` (`mcp-config.example.json`).
+
+**Опциональный host-Ollama override.** Если Ollama уже установлена на хосте и модель
+скачана, можно не поднимать сервисы `ollama`/`ollama-pull`, а направить сервер на
+host-Ollama: `RAG_OLLAMA_HOST=http://host.docker.internal:11434 docker compose up mcp-server`
+(это же значение — дефолт в `config.py`).
 
 ## 9. Тестирование
 
-- `test_indexer.py` — загрузка, чанкинг, запись/чтение Chroma.
+Всего **25 тестов** (`PYTHONPATH=src pytest -q`):
+
+- `test_indexer.py` — загрузка, чанкинг, запись/чтение Chroma; индекс `sample_docs`
+  содержит зашитые проверочные факты.
 - `test_retrieval.py` — корректность RRF-слияния (детерминированно, без LLM).
 - `test_graph.py` — ветки графа с **mock LLM**: достаточно/недостаточно чанков, retry-лимит.
-- `test_tools_e2e.py` — e2e сценарий 4 MCP-инструментов.
+- `test_llm.py` — парсинг grade (да/нет), форматирование контекста, fallback rewrite.
+- `test_tools_e2e.py` — e2e 4 MCP-инструментов через in-memory `fastmcp.Client`,
+  обёрнутый в `asyncio.run` (без `pytest-asyncio`); offline hashing-эмбеддинги и mock LLM.
