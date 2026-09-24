@@ -13,6 +13,9 @@ class MockLLM:
     def rewrite_query(self, query):
         return f"{query} [rw]"
 
+    def broaden_query(self, query):
+        return f"{query} [broad]"
+
     def grade_chunk(self, query, chunk):
         self.grade_calls += 1
         return self.grade_result
@@ -67,6 +70,21 @@ def test_retry_limit_then_generate_anyway():
     assert retriever.calls[-1]["top_k"] > retriever.calls[0]["top_k"]
     # всё равно генерируем ответ (fallback на сырые чанки)
     assert out["answer"] == "answer:a.md"
+
+
+def test_broaden_changes_query():
+    """После broaden rewritten_query должен измениться (не тот же запрос)."""
+    retriever = RecordingRetriever()
+    llm = MockLLM(grade_result=False)  # grade всегда False → триггерит broaden
+
+    ask_question("вопрос", llm=llm, retrieve_fn=retriever)
+
+    # Первый вызов: "вопрос [rw]", после broaden: "вопрос [rw] [broad]"
+    first_query = retriever.calls[0]["query"]
+    if len(retriever.calls) > 1:
+        second_query = retriever.calls[1]["query"]
+        assert second_query != first_query, "broaden должен менять запрос"
+        assert "[broad]" in second_query
 
 
 def test_graph_compiles():
