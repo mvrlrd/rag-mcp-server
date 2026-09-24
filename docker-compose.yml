@@ -32,8 +32,8 @@ services:
       ollama-pull:
         condition: service_completed_successfully
     environment:
-      # Ollama внутри compose. Для host-Ollama см. README (override).
-      RAG_OLLAMA_HOST: http://ollama:11434
+      # Ollama внутри compose. Для host-Ollama: RAG_OLLAMA_HOST=http://host.docker.internal:11434 docker compose up
+      RAG_OLLAMA_HOST: ${RAG_OLLAMA_HOST:-http://ollama:11434}
       RAG_LLM_MODEL: qwen2.5:3b
       RAG_CHROMA_DIR: /data/chroma
       RAG_MCP_TRANSPORT: streamable-http

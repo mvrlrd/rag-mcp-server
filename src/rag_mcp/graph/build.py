@@ -17,7 +17,7 @@ def build_graph(llm: LLM, retrieve_fn: RetrieveFn | None = None):
     g.add_node("rewrite", nodes.make_rewrite(llm))
     g.add_node("retrieve", nodes.make_retrieve(retrieve_fn))
     g.add_node("grade", nodes.make_grade(llm))
-    g.add_node("broaden", nodes.broaden)
+    g.add_node("broaden", nodes.make_broaden(llm))
     g.add_node("generate", nodes.make_generate(llm))
 
     g.add_edge(START, "rewrite")
