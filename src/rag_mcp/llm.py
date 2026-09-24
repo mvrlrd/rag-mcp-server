@@ -20,10 +20,25 @@ REWRITE_PROMPT = (
     "без пояснений.\n\nВопрос: {query}"
 )
 
+BROADEN_PROMPT = (
+    "Ты помогаешь расширить поисковый запрос, когда первоначальный запрос "
+    "не нашёл достаточно релевантных документов. Переформулируй запрос шире: "
+    "добавь синонимы, используй более общие термины, замени специфичные слова "
+    "на родственные понятия. Верни только новый запрос без пояснений.\n\n"
+    "Исходный запрос: {query}"
+)
+
 GRADE_PROMPT = (
     "Оцени, помогает ли фрагмент ответить на вопрос. "
     "Ответь строго одним словом: да или нет.\n\n"
-    "Вопрос: {query}\n\nФрагмент:\n{chunk}"
+    "Примеры:\n"
+    "Вопрос: Кто руководит проектом?\n"
+    "Фрагмент: Ведущий инженер Марфа Кузнецова отвечает за разработку.\n"
+    "Ответ: да\n\n"
+    "Вопрос: Какой бюджет у проекта?\n"
+    "Фрагмент: Описание архитектуры микросервисов.\n"
+    "Ответ: нет\n\n"
+    "Вопрос: {query}\n\nФрагмент:\n{chunk}\nОтвет:"
 )
 
 GENERATE_PROMPT = (
@@ -37,6 +52,7 @@ GENERATE_PROMPT = (
 @runtime_checkable
 class LLM(Protocol):
     def rewrite_query(self, query: str) -> str: ...
+    def broaden_query(self, query: str) -> str: ...
     def grade_chunk(self, query: str, chunk: str) -> bool: ...
     def generate_answer(self, query: str, chunks: list[RetrievedChunk]) -> str: ...
 
@@ -50,7 +66,12 @@ def _format_context(chunks: list[RetrievedChunk]) -> str:
 
 def _parse_yes_no(text: str) -> bool:
     t = text.strip().lower()
-    return t.startswith(("да", "yes"))
+    if t.startswith(("да", "yes")):
+        return True
+    if t.startswith(("нет", "no")):
+        return False
+    # Неразобранный ответ: либеральный fallback — оставляем чанк
+    return True
 
 
 class OllamaLLM:
@@ -68,6 +89,10 @@ class OllamaLLM:
 
     def rewrite_query(self, query: str) -> str:
         out = self._chat(REWRITE_PROMPT.format(query=query)).strip()
+        return out or query
+
+    def broaden_query(self, query: str) -> str:
+        out = self._chat(BROADEN_PROMPT.format(query=query)).strip()
         return out or query
 
     def grade_chunk(self, query: str, chunk: str) -> bool:
