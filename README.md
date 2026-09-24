@@ -42,7 +42,7 @@ RAG_LLM_MODEL=llama3.2:3b docker compose up
 `ollama`/`ollama-pull`, а направить сервер на host-Ollama:
 
 ```bash
-RAG_OLLAMA_HOST=http://host.docker.internal:11434 docker compose up mcp-server
+OLLAMA_HOST=http://host.docker.internal:11434 RAG_OLLAMA_HOST=http://host.docker.internal:11434 docker compose up --no-deps mcp-server
 ```
 
 ## Подключение MCP к IDE-агенту
