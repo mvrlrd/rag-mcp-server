@@ -14,10 +14,12 @@ from .config import settings
 from .retrieval import RetrievedChunk
 
 REWRITE_PROMPT = (
-    "Ты помогаешь искать документы в базе знаний. Переформулируй вопрос "
-    "пользователя так, чтобы он лучше находил релевантные фрагменты: "
-    "уточни термины, убери лишнее. Верни только переформулированный запрос "
-    "без пояснений.\n\nВопрос: {query}"
+    "Ты помогаешь искать документы в специализированной базе знаний. "
+    "Переформулируй вопрос так, чтобы лучше находить релевантные фрагменты: "
+    "уточни смысл, убери лишнее. "
+    "ВАЖНО: сохраняй все имена, названия и термины из вопроса без изменений — "
+    "они могут быть специфичными для данной предметной области. "
+    "Верни только переформулированный запрос без пояснений.\n\nВопрос: {query}"
 )
 
 BROADEN_PROMPT = (
@@ -29,16 +31,17 @@ BROADEN_PROMPT = (
 )
 
 GRADE_PROMPT = (
-    "Оцени, помогает ли фрагмент ответить на вопрос. "
-    "Ответь строго одним словом: да или нет.\n\n"
-    "Примеры:\n"
-    "Вопрос: Кто руководит проектом?\n"
-    "Фрагмент: Ведущий инженер Марфа Кузнецова отвечает за разработку.\n"
+    "Определи: упоминается ли в фрагменте тема запроса? "
+    "Ответь одним словом: да или нет.\n\n"
+    "Запрос: Кто такой Иванов?\n"
+    "Фрагмент: Иванов — директор компании.\n"
     "Ответ: да\n\n"
-    "Вопрос: Какой бюджет у проекта?\n"
-    "Фрагмент: Описание архитектуры микросервисов.\n"
+    "Запрос: Какой цвет неба?\n"
+    "Фрагмент: Температура воздуха — 20 градусов.\n"
     "Ответ: нет\n\n"
-    "Вопрос: {query}\n\nФрагмент:\n{chunk}\nОтвет:"
+    "Запрос: {query}\n"
+    "Фрагмент: {chunk}\n"
+    "Ответ:"
 )
 
 GENERATE_PROMPT = (
@@ -79,11 +82,14 @@ class OllamaLLM:
         self.model = model or settings.llm_model
         self.client = client or ollama.Client(host=host or settings.ollama_host)
 
-    def _chat(self, prompt: str) -> str:
+    def _chat(self, prompt: str, extra_options: dict | None = None) -> str:
+        options = {"temperature": 0.0}
+        if extra_options:
+            options.update(extra_options)
         resp = self.client.chat(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            options={"temperature": 0.0},
+            options=options,
         )
         return resp["message"]["content"]
 
@@ -96,7 +102,8 @@ class OllamaLLM:
         return out or query
 
     def grade_chunk(self, query: str, chunk: str) -> bool:
-        return _parse_yes_no(self._chat(GRADE_PROMPT.format(query=query, chunk=chunk)))
+        prompt = GRADE_PROMPT.format(query=query, chunk=chunk)
+        return _parse_yes_no(self._chat(prompt, extra_options={"num_predict": 5}))
 
     def generate_answer(self, query: str, chunks: list[RetrievedChunk]) -> str:
         context = _format_context(chunks)

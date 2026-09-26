@@ -62,9 +62,10 @@ def make_broaden(llm: LLM) -> Callable[[GraphState], dict]:
         old_query = state["rewritten_query"]
         new_query = llm.broaden_query(old_query)
         if new_query.lower() == old_query.lower():
-            words = state["query"].split()
-            new_query = " ".join(words[:2]) if len(words) > 2 else old_query
-            logger.info("broaden: loop=%d fallback=%r", loop, new_query)
+            logger.warning(
+                "broaden: loop=%d LLM returned same query, keeping as-is", loop
+            )
+            new_query = old_query
         else:
             logger.info("broaden: loop=%d, %r → %r", loop, old_query, new_query)
         return {"loop_count": loop, "rewritten_query": new_query}

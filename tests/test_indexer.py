@@ -37,7 +37,7 @@ def test_split_file_respects_supported_only(sample_docs, collection):
 
 def test_content_is_searchable(sample_docs, collection):
     indexer.index_folder(str(sample_docs), collection=collection)
-    res = collection.query(query_texts=["Гидра бюджет попугай"], n_results=1)
+    res = collection.query(query_texts=["Квадратов институт космология"], n_results=1)
     assert res["documents"][0]
 
 
@@ -46,6 +46,6 @@ def test_sample_docs_index_contains_seeded_fact(collection):
     assert stats["chunks"] > 0
     got = collection.get(include=["documents"])
     joined = "\n".join(got["documents"])
-    assert "Гидра-7" in joined
-    assert "Марфа Кузнецова" in joined
-    assert "малахитовый барсук" in joined
+    assert "Квадратов" in joined
+    assert "Абсцисса" in joined
+    assert "Хордова" in joined
