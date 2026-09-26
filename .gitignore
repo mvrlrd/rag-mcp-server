@@ -31,3 +31,6 @@ htmlcov/
 
 # Local env
 .env
+
+# Answer keys (not for repo)
+**/ANSWER_KEY.md
