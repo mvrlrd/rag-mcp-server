@@ -1,0 +1,111 @@
+{
+  "survey": "ОБХОД-2",
+  "full_name": "Второй обход неба Хребта Биссектрисы",
+  "version": "1.4.2",
+  "principal_investigator": "И. И. Хордова",
+  "start_date": "2025-02-01",
+  "planned_end_date": "2028-12-31",
+  "site": {
+    "observatory": "Касательная",
+    "altitude_plint": 2870,
+    "dome": {
+      "azimuth_exclusion_deg": [],
+      "note": "Ограничение по сектору 212° снято после замены дуги купола (2024)"
+    }
+  },
+  "telescope": {
+    "name": "Отрезок-3М",
+    "aperture_plint": 16.2,
+    "corrector": "КР-23 (установлен 2023-01-14)"
+  },
+  "fields": {
+    "count": 1204,
+    "overlap_percent": 8,
+    "ordering": "по возрастанию азимута, затем по высоте над горизонтом"
+  },
+  "exposure": {
+    "exposure_ticks": 512,
+    "exposures_per_field": 3,
+    "dither_arcsec": 4.0,
+    "max_flicker_arcsec": 1.4,
+    "comment": "512 тиков выбрано по итогам тестов 6–7 ноября 2023 г."
+  },
+  "calibration": {
+    "reference_star": "Сигма Обода",
+    "lamp_every_n_fields": 20,
+    "dark_frames_per_night": 12
+  },
+  "pipeline": {
+    "reduction": "obhod-reduce 3.2",
+    "catalog_crossmatch": "katalog_ploskih_galaktik.csv",
+    "crossmatch_radius_arcsec": 2.5,
+    "redshift_model": {
+      "H2_kpl_tick_Mpl": 64.9,
+      "c2_plint_per_tick": 311000000
+    },
+    "output_format": "fits-2d"
+  },
+  "safety": {
+    "check_slit_for_cat": true,
+    "wind_limit_plint_per_tick": 15,
+    "humidity_limit_percent": 85
+  },
+  "contacts": {
+    "night_duty": "М. С. Точкин",
+    "data_manager": "Я. О. Отрезкина"
+  },
+  "priority_targets": [
+    {
+      "id": "ПГ-1313",
+      "name": "Ересь",
+      "reason": "подсчёт рукавов (проверка закона Пентагонова)",
+      "extra_exposures": 6
+    },
+    {
+      "id": "ПГ-0999",
+      "name": "Последний Штрих",
+      "reason": "наиболее удалённый объект каталога, эталон фотометрии",
+      "extra_exposures": 3
+    },
+    {
+      "id": "ПГ-0002",
+      "name": "Туманность Штрих",
+      "reason": "калибровка мигалок",
+      "extra_exposures": 3
+    },
+    {
+      "id": "sector-212",
+      "name": "сектор азимута 212°",
+      "reason": "поиск эха Шва по заявке Г. Ф. Ромбова (протокол № 7/2022, п. 3.3)",
+      "extra_exposures": 3
+    },
+    {
+      "id": "rombov-1990-dirs",
+      "name": "направления эха Шва 1990 г.",
+      "reason": "договорённость на 102-х Чтениях Квадратова",
+      "extra_exposures": 3
+    }
+  ],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2023-10-02",
+      "note": "черновик; экспозиция 384 тика"
+    },
+    {
+      "version": "1.2.0",
+      "date": "2023-11-10",
+      "note": "экспозиция изменена на 512 тиков по итогам тестов"
+    },
+    {
+      "version": "1.3.0",
+      "date": "2024-06-05",
+      "note": "удалено исключение азимута 212° после замены дуги купола"
+    },
+    {
+      "version": "1.4.2",
+      "date": "2025-01-20",
+      "note": "добавлены приоритетные цели; финальная версия перед стартом"
+    }
+  ]
+}
