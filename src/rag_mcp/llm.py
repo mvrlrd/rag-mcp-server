@@ -31,7 +31,8 @@ BROADEN_PROMPT = (
 )
 
 GRADE_PROMPT = (
-    "Определи: упоминается ли в фрагменте тема запроса? Ответь одним словом: да или нет.\n\n"
+    "Определи: упоминается ли в фрагменте тема запроса? "
+    "Ответь одним словом: да или нет.\n\n"
     "Запрос: Кто такой Иванов?\n"
     "Фрагмент: Иванов — директор компании.\n"
     "Ответ: да\n\n"
@@ -101,9 +102,8 @@ class OllamaLLM:
         return out or query
 
     def grade_chunk(self, query: str, chunk: str) -> bool:
-        return _parse_yes_no(
-            self._chat(GRADE_PROMPT.format(query=query, chunk=chunk), extra_options={"num_predict": 5})
-        )
+        prompt = GRADE_PROMPT.format(query=query, chunk=chunk)
+        return _parse_yes_no(self._chat(prompt, extra_options={"num_predict": 5}))
 
     def generate_answer(self, query: str, chunks: list[RetrievedChunk]) -> str:
         context = _format_context(chunks)
