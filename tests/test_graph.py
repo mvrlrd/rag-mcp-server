@@ -87,5 +87,19 @@ def test_broaden_changes_query():
         assert "[broad]" in second_query
 
 
+def test_broaden_fallback_same_query_still_terminates():
+    class SameBroadenLLM(MockLLM):
+        def broaden_query(self, query):
+            return query  # LLM не меняет запрос
+
+    retriever = RecordingRetriever()
+    out = ask_question("вопрос", llm=SameBroadenLLM(grade_result=False), retrieve_fn=retriever)
+
+    assert len(retriever.calls) == settings.max_loops + 1
+    assert out["answer"]  # всё равно генерируем
+    # top_k растёт даже без смены запроса
+    assert retriever.calls[-1]["top_k"] > retriever.calls[0]["top_k"]
+
+
 def test_graph_compiles():
     assert build_graph(MockLLM(True), RecordingRetriever()) is not None
