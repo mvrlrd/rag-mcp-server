@@ -93,7 +93,9 @@ def test_broaden_fallback_same_query_still_terminates():
             return query  # LLM не меняет запрос
 
     retriever = RecordingRetriever()
-    out = ask_question("вопрос", llm=SameBroadenLLM(grade_result=False), retrieve_fn=retriever)
+    out = ask_question(
+        "вопрос", llm=SameBroadenLLM(grade_result=False), retrieve_fn=retriever
+    )
 
     assert len(retriever.calls) == settings.max_loops + 1
     assert out["answer"]  # всё равно генерируем
