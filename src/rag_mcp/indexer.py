@@ -82,6 +82,7 @@ def default_embedding_function():
         return embedding_functions.OllamaEmbeddingFunction(
             url=f"{settings.ollama_host}/api/embeddings",
             model_name=settings.embed_model,
+            timeout=settings.embed_timeout,
         )
     return None
 
