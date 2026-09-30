@@ -21,7 +21,7 @@ services:
         condition: service_healthy
     environment:
       OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
-    entrypoint: ["ollama", "pull", "qwen2.5:3b"]
+    entrypoint: ["sh", "-c", "ollama pull qwen2.5:3b && ollama pull bge-m3"]
     restart: "no"
 
   mcp-server:
@@ -35,6 +35,7 @@ services:
       # Ollama внутри compose. Для host-Ollama: RAG_OLLAMA_HOST=http://host.docker.internal:11434 docker compose up
       RAG_OLLAMA_HOST: ${RAG_OLLAMA_HOST:-http://ollama:11434}
       RAG_LLM_MODEL: qwen2.5:3b
+      RAG_EMBED_MODEL: bge-m3
       RAG_CHROMA_DIR: /data/chroma
       RAG_MCP_TRANSPORT: streamable-http
       RAG_MCP_HOST: 0.0.0.0
