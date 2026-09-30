@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     llm_model: str = "qwen2.5:3b"
     # Опциональные эмбеддинги через Ollama. Пусто — встроенные ChromaDB.
     embed_model: str = ""
+    embed_timeout: int = 300
 
     # --- Хранилище / индексация ---
     chroma_dir: str = "./chroma_db"
