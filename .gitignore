@@ -31,3 +31,6 @@ htmlcov/
 
 # Local env
 .env
+
+# Teacher's answer key — must never be indexed/committed (data leakage)
+**/ANSWER_KEY.md
