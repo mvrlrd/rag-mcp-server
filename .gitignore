@@ -34,3 +34,9 @@ htmlcov/
 
 # Answer keys (not for repo)
 **/ANSWER_KEY.md
+
+# Eval harness output / local answer key
+eval/answer_key.yaml
+eval/report.json
+eval/report.md
+eval/reports/
