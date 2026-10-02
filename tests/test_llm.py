@@ -1,6 +1,6 @@
 """Тесты обёртки OllamaLLM с fake-клиентом (без сети)."""
 
-from rag_mcp.llm import OllamaLLM
+from rag_mcp.llm import OllamaLLM, _parse_grade
 from rag_mcp.retrieval import RetrievedChunk
 
 
@@ -30,14 +30,39 @@ def test_rewrite_falls_back_to_original_on_empty():
     assert llm.rewrite_query("исходный вопрос") == "исходный вопрос"
 
 
-def test_grade_parses_yes():
-    llm = OllamaLLM(model="m", client=FakeClient(reply="Да, помогает"))
-    assert llm.grade_chunk("вопрос", "фрагмент") is True
+def test_grade_parses_score_and_quote():
+    reply = "Цитата: Иванов — директор.\nОценка: 8"
+    llm = OllamaLLM(model="m", client=FakeClient(reply=reply))
+    result = llm.grade_chunk("вопрос", "Иванов — директор.", source="test.md")
+    assert result.score == 8
+    assert result.quote == "Иванов — директор."
 
 
-def test_grade_parses_no():
-    llm = OllamaLLM(model="m", client=FakeClient(reply="Нет"))
-    assert llm.grade_chunk("вопрос", "фрагмент") is False
+def test_grade_parses_no_quote():
+    reply = "Цитата: НЕТ\nОценка: 2"
+    llm = OllamaLLM(model="m", client=FakeClient(reply=reply))
+    result = llm.grade_chunk("вопрос", "фрагмент")
+    assert result.score == 2
+    assert result.quote is None
+
+
+def test_grade_includes_source_in_prompt_and_uses_num_predict_80():
+    fake = FakeClient(reply="Цитата: НЕТ\nОценка: 0")
+    llm = OllamaLLM(model="m", client=fake)
+    llm.grade_chunk("вопрос", "фрагмент", source="foo.md")
+    sent = fake.calls[0]["messages"][0]["content"]
+    assert "foo.md" in sent
+    assert fake.calls[0]["options"]["num_predict"] == 80
+
+
+def test_grade_clamps_score_above_10():
+    assert _parse_grade("Цитата: НЕТ\nОценка: 15").score == 10
+
+
+def test_grade_unparsable_falls_back_liberally():
+    result = _parse_grade("что-то непонятное без нужного формата")
+    assert result.score == 10
+    assert result.quote is None
 
 
 def test_generate_includes_query_and_sources_in_prompt():

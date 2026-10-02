@@ -13,6 +13,7 @@ from fastmcp import Client
 from rag_mcp import indexer, server
 from rag_mcp.graph import build as graph_build
 from rag_mcp.indexer import HashingEmbeddingFunction
+from rag_mcp.llm import GradeResult
 from rag_mcp.retrieval import RetrievedChunk
 
 
@@ -20,8 +21,11 @@ class MockLLM:
     def rewrite_query(self, query):
         return query
 
-    def grade_chunk(self, query, chunk):
-        return True
+    def broaden_query(self, query):
+        return query
+
+    def grade_chunk(self, query, chunk, source=""):
+        return GradeResult(score=10, quote=None)
 
     def generate_answer(self, query, chunks: list[RetrievedChunk]):
         joined = " ".join(c.document for c in chunks)

@@ -39,4 +39,8 @@ def ask_question(query: str, llm: LLM | None = None, retrieve_fn=None) -> dict:
     llm = llm or get_llm()
     graph = build_graph(llm, retrieve_fn)
     final = graph.invoke({"query": query, "loop_count": 0})
-    return {"answer": final.get("answer", ""), "sources": final.get("sources", [])}
+    return {
+        "answer": final.get("answer", ""),
+        "sources": final.get("sources", []),
+        "no_relevant_chunks": final.get("no_relevant_chunks", False),
+    }
