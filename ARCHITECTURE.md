@@ -140,7 +140,7 @@ host-Ollama: `RAG_OLLAMA_HOST=http://host.docker.internal:11434 docker compose u
 
 ## 9. Тестирование
 
-Всего **25 тестов** (`PYTHONPATH=src pytest -q`):
+Всего **30 тестов** (`PYTHONPATH=src pytest -q`):
 
 - `test_indexer.py` — загрузка, чанкинг, запись/чтение Chroma; индекс `sample_docs`
   содержит зашитые проверочные факты.
