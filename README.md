@@ -102,7 +102,7 @@ ask_question("Кто основал институт?")
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-PYTHONPATH=src pytest -q       # 25 тестов
+PYTHONPATH=src pytest -q       # 30 тестов
 ruff check src tests           # линт
 ```
 
