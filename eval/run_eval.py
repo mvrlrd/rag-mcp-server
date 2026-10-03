@@ -46,9 +46,16 @@ def _source_match(sources: list[str], expected_sources: list[str]) -> bool:
     return any(s.endswith(exp) for s in sources for exp in expected_sources)
 
 
-def run_question(q: dict) -> dict:
+def run_question(q: dict, retries: int = 2) -> dict:
     start = time.monotonic()
-    out = ask_question(q["question"])
+    for attempt in range(retries + 1):
+        try:
+            out = ask_question(q["question"])
+            break
+        except Exception as e:
+            if attempt == retries:
+                raise
+            print(f"  retry after error: {e}", file=sys.stderr)
     latency = time.monotonic() - start
 
     answer = out.get("answer", "")
