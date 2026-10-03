@@ -15,3 +15,4 @@ class GraphState(TypedDict, total=False):
     loop_count: int
     answer: str
     sources: list[str]
+    no_relevant_chunks: bool
