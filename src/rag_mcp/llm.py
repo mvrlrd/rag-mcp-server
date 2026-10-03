@@ -6,12 +6,17 @@
 
 from __future__ import annotations
 
+import logging
+import re
+from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 import ollama
 
 from .config import settings
 from .retrieval import RetrievedChunk
+
+logger = logging.getLogger(__name__)
 
 REWRITE_PROMPT = (
     "Ты помогаешь искать документы в специализированной базе знаний. "
@@ -33,17 +38,47 @@ BROADEN_PROMPT = (
 )
 
 GRADE_PROMPT = (
-    "Определи: упоминается ли в фрагменте тема запроса? "
-    "Ответь одним словом: да или нет.\n\n"
-    "Запрос: Кто такой Иванов?\n"
-    "Фрагмент: Иванов — директор компании.\n"
-    "Ответ: да\n\n"
-    "Запрос: Какой цвет неба?\n"
-    "Фрагмент: Температура воздуха — 20 градусов.\n"
-    "Ответ: нет\n\n"
-    "Запрос: {query}\n"
-    "Фрагмент: {chunk}\n"
-    "Ответ:"
+    "Ты определяешь, помогает ли фрагмент документа ответить на вопрос.\n\n"
+    "Пример 1 (прямой ответ есть):\n"
+    "Источник: sotrudniki.md\n"
+    "Фрагмент:\nИванов работает в компании директором с 2010 года.\n\n"
+    "Вопрос: Кто директор компании?\n\n"
+    "Цитата: Иванов работает в компании директором с 2010 года.\n"
+    "Оценка: 10\n\n"
+    "Пример 2 (та же тема, но без прямого ответа):\n"
+    "Источник: observatorii.md\n"
+    "Фрагмент:\nНа обсерватории Нормаль работает смотритель Петров. У него есть "
+    "собака, но её имя нигде не указано.\n\n"
+    "Вопрос: Как зовут собаку обсерватории Нормаль?\n\n"
+    "Цитата: НЕТ\n"
+    "Оценка: 3\n\n"
+    "Пример 3 (ответ есть, но зашит внутри описания происшествия — "
+    "это НЕ повод снижать оценку):\n"
+    "Источник: tekhobsluzhivanie.md\n"
+    "Фрагмент:\nПлановый обход зафиксировал протечку в контуре охлаждения "
+    "насоса №2; ремонт выполнял слесарь Коробов, который устранил течь за "
+    "полтора часа.\n\n"
+    "Вопрос: Кто устранил течь насоса №2?\n\n"
+    "Цитата: ремонт выполнял слесарь Коробов, который устранил течь за "
+    "полтора часа.\n"
+    "Оценка: 9\n\n"
+    "Пример 4 (не по теме):\n"
+    "Источник: byudzhet.md\n"
+    "Фрагмент:\nБюджет отдела продаж на 2021 год составил 5 млн рублей.\n\n"
+    "Вопрос: Как зовут кошку на обсерватории?\n\n"
+    "Цитата: НЕТ\n"
+    "Оценка: 0\n\n"
+    "Теперь оцени реальный фрагмент.\n\n"
+    "Источник: {source}\n"
+    "Фрагмент:\n{chunk}\n\n"
+    "Вопрос: {query}\n\n"
+    "Выполни два шага:\n"
+    "1) Найди в фрагменте дословную цитату, отвечающую на вопрос. "
+    "Если её нет — напиши НЕТ.\n"
+    "2) Оцени релевантность по шкале 0-10: 0 — не по теме; "
+    "3-5 — та же тема, но без ответа; 8-10 — прямой ответ.\n\n"
+    "Ответь СТРОГО в формате:\nЦитата: <цитата или НЕТ>\nОценка: <0-10>\n\n"
+    "Твой ответ:"
 )
 
 GENERATE_PROMPT = (
@@ -54,11 +89,17 @@ GENERATE_PROMPT = (
 )
 
 
+@dataclass
+class GradeResult:
+    score: int
+    quote: str | None
+
+
 @runtime_checkable
 class LLM(Protocol):
     def rewrite_query(self, query: str) -> str: ...
     def broaden_query(self, query: str) -> str: ...
-    def grade_chunk(self, query: str, chunk: str) -> bool: ...
+    def grade_chunk(self, query: str, chunk: str, source: str = "") -> GradeResult: ...
     def generate_answer(self, query: str, chunks: list[RetrievedChunk]) -> str: ...
 
 
@@ -69,14 +110,24 @@ def _format_context(chunks: list[RetrievedChunk]) -> str:
     return "\n\n".join(blocks)
 
 
-def _parse_yes_no(text: str) -> bool:
-    t = text.strip().lower()
-    if t.startswith(("да", "yes")):
-        return True
-    if t.startswith(("нет", "no")):
-        return False
-    # Неразобранный ответ: либеральный fallback — оставляем чанк
-    return True
+_SCORE_RE = re.compile(r"оценка\s*:?\s*(\d+)", re.IGNORECASE)
+_QUOTE_RE = re.compile(r"цитата\s*:?\s*(.+)", re.IGNORECASE)
+
+
+def _parse_grade(text: str) -> GradeResult:
+    quote = None
+    quote_match = _QUOTE_RE.search(text)
+    if quote_match:
+        raw_quote = quote_match.group(1).splitlines()[0].strip()
+        if raw_quote and raw_quote.upper() != "НЕТ":
+            quote = raw_quote
+
+    score_match = _SCORE_RE.search(text)
+    if not score_match:
+        # Неразобранный ответ: либеральный fallback — оставляем чанк
+        return GradeResult(score=10, quote=quote)
+    score = max(0, min(10, int(score_match.group(1))))
+    return GradeResult(score=score, quote=quote)
 
 
 class OllamaLLM:
@@ -103,9 +154,16 @@ class OllamaLLM:
         out = self._chat(BROADEN_PROMPT.format(query=query)).strip()
         return out or query
 
-    def grade_chunk(self, query: str, chunk: str) -> bool:
-        prompt = GRADE_PROMPT.format(query=query, chunk=chunk)
-        return _parse_yes_no(self._chat(prompt, extra_options={"num_predict": 5}))
+    def grade_chunk(self, query: str, chunk: str, source: str = "") -> GradeResult:
+        prompt = GRADE_PROMPT.format(query=query, chunk=chunk, source=source)
+        text = self._chat(prompt, extra_options={"num_predict": 80})
+        result = _parse_grade(text)
+        if result.quote and result.quote not in chunk:
+            logger.warning(
+                "grade_chunk: quote not in chunk (possible hallucination): %r",
+                result.quote,
+            )
+        return result
 
     def generate_answer(self, query: str, chunks: list[RetrievedChunk]) -> str:
         context = _format_context(chunks)

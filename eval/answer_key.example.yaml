@@ -1,0 +1,35 @@
+# Схема вопросов для eval/run_eval.py.
+#
+# Реальный набор (25 вопросов преподавателя) кладётся в eval/answer_key.yaml
+# (в .gitignore, не коммитится) — скопировать вручную из ANSWER_KEY.md.
+#
+# type — один из: S, T, M, O, D, R (см. ANSWER_KEY.md), либо составной (O+D).
+# expected_keywords — ответ засчитывается, если в тексте ответа нашлось
+#   не меньше min_matches из этих подстрок (регистронезависимо).
+# expected_sources — хотя бы один источник в out["sources"] должен
+#   заканчиваться на одну из этих строк (source в метаданных — полный путь).
+# refusal_expected — true для R-вопросов, где отказ — правильный ответ.
+
+- id: 1
+  type: "S"
+  question: "Кто и когда основал Институт плоской космологии?"
+  expected_keywords: ["Квадратов", "1889"]
+  min_matches: 2
+  expected_sources: ["03_istoriya/istoriya_instituta.md"]
+  refusal_expected: false
+
+- id: 6
+  type: "S"
+  question: "Как зовут кошку, которая живёт на обсерватории «Касательная»?"
+  expected_keywords: ["Абсцисса"]
+  min_matches: 1
+  expected_sources: ["05_nablyudeniya/zhurnal_kasatelnaya_2023.md"]
+  refusal_expected: false
+
+- id: 23
+  type: "R"
+  question: "Как зовут собаку обсерватории «Нормаль»?"
+  expected_keywords: []
+  min_matches: 0
+  expected_sources: []
+  refusal_expected: true

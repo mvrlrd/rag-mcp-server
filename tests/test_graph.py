@@ -2,13 +2,16 @@
 
 from rag_mcp.config import settings
 from rag_mcp.graph.build import ask_question, build_graph
+from rag_mcp.graph.nodes import NO_RELEVANT_CHUNKS_ANSWER
+from rag_mcp.llm import GradeResult
 from rag_mcp.retrieval import RetrievedChunk
 
 
 class MockLLM:
-    def __init__(self, grade_result):
-        self.grade_result = grade_result
+    def __init__(self, grade_score):
+        self.grade_score = grade_score
         self.grade_calls = 0
+        self.generate_calls = 0
 
     def rewrite_query(self, query):
         return f"{query} [rw]"
@@ -16,11 +19,12 @@ class MockLLM:
     def broaden_query(self, query):
         return f"{query} [broad]"
 
-    def grade_chunk(self, query, chunk):
+    def grade_chunk(self, query, chunk, source=""):
         self.grade_calls += 1
-        return self.grade_result
+        return GradeResult(score=self.grade_score, quote=None)
 
     def generate_answer(self, query, chunks):
+        self.generate_calls += 1
         sources = dict.fromkeys(c.source for c in chunks)
         return "answer:" + ",".join(sources)
 
@@ -43,7 +47,7 @@ class RecordingRetriever:
 
 def test_enough_chunks_goes_straight_to_generate():
     retriever = RecordingRetriever()
-    llm = MockLLM(grade_result=True)
+    llm = MockLLM(grade_score=10)
 
     out = ask_question("вопрос", llm=llm, retrieve_fn=retriever)
 
@@ -54,13 +58,13 @@ def test_enough_chunks_goes_straight_to_generate():
 
 def test_rewrite_query_is_used_for_retrieval():
     retriever = RecordingRetriever()
-    ask_question("вопрос", llm=MockLLM(grade_result=True), retrieve_fn=retriever)
+    ask_question("вопрос", llm=MockLLM(grade_score=10), retrieve_fn=retriever)
     assert retriever.calls[0]["query"] == "вопрос [rw]"
 
 
-def test_retry_limit_then_generate_anyway():
+def test_retry_limit_then_honest_refusal():
     retriever = RecordingRetriever()
-    llm = MockLLM(grade_result=False)  # никогда не достаточно
+    llm = MockLLM(grade_score=0)  # никогда не проходит порог
 
     out = ask_question("вопрос", llm=llm, retrieve_fn=retriever)
 
@@ -68,14 +72,17 @@ def test_retry_limit_then_generate_anyway():
     assert len(retriever.calls) == settings.max_loops + 1
     # broaden расширяет top_k на каждой итерации
     assert retriever.calls[-1]["top_k"] > retriever.calls[0]["top_k"]
-    # всё равно генерируем ответ (fallback на сырые чанки)
-    assert out["answer"] == "answer:a.md"
+    # честный отказ вместо генерации по неотфильтрованным чанкам
+    assert out["answer"] == NO_RELEVANT_CHUNKS_ANSWER
+    assert out["sources"] == []
+    assert out["no_relevant_chunks"] is True
+    assert llm.generate_calls == 0
 
 
 def test_broaden_changes_query():
     """После broaden rewritten_query должен измениться (не тот же запрос)."""
     retriever = RecordingRetriever()
-    llm = MockLLM(grade_result=False)  # grade всегда False → триггерит broaden
+    llm = MockLLM(grade_score=0)  # grade никогда не проходит → триггерит broaden
 
     ask_question("вопрос", llm=llm, retrieve_fn=retriever)
 
@@ -94,14 +101,14 @@ def test_broaden_fallback_same_query_still_terminates():
 
     retriever = RecordingRetriever()
     out = ask_question(
-        "вопрос", llm=SameBroadenLLM(grade_result=False), retrieve_fn=retriever
+        "вопрос", llm=SameBroadenLLM(grade_score=0), retrieve_fn=retriever
     )
 
     assert len(retriever.calls) == settings.max_loops + 1
-    assert out["answer"]  # всё равно генерируем
+    assert out["answer"] == NO_RELEVANT_CHUNKS_ANSWER
     # top_k растёт даже без смены запроса
     assert retriever.calls[-1]["top_k"] > retriever.calls[0]["top_k"]
 
 
 def test_graph_compiles():
-    assert build_graph(MockLLM(True), RecordingRetriever()) is not None
+    assert build_graph(MockLLM(grade_score=10), RecordingRetriever()) is not None

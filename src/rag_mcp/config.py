@@ -35,6 +35,8 @@ class Settings(BaseSettings):
 
     # --- Граф Corrective RAG ---
     max_loops: int = 2
+    # Порог релевантности (0-10) для прохождения грейдера.
+    grade_threshold: int = 5
 
 
 settings = Settings()

@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 RetrieveFn = Callable[[str, int], list[RetrievedChunk]]
 
+NO_RELEVANT_CHUNKS_ANSWER = "Информация отсутствует в базе знаний."
+
 
 def _default_retrieve(query: str, top_k: int) -> list[RetrievedChunk]:
     return find_relevant_docs(query, top_k=top_k)
@@ -49,8 +51,18 @@ def make_retrieve(retrieve_fn: RetrieveFn) -> Callable[[GraphState], dict]:
 def make_grade(llm: LLM) -> Callable[[GraphState], dict]:
     def grade(state: GraphState) -> dict:
         query = state["query"]
-        graded = [c for c in state["chunks"] if llm.grade_chunk(query, c.document)]
-        logger.info("grade: %d/%d chunks passed", len(graded), len(state["chunks"]))
+        threshold = settings.grade_threshold
+        graded = [
+            c
+            for c in state["chunks"]
+            if llm.grade_chunk(query, c.document, c.source).score >= threshold
+        ]
+        logger.info(
+            "grade: %d/%d chunks passed (threshold=%d)",
+            len(graded),
+            len(state["chunks"]),
+            threshold,
+        )
         return {"graded": graded}
 
     return grade
@@ -75,11 +87,18 @@ def make_broaden(llm: LLM) -> Callable[[GraphState], dict]:
 
 def make_generate(llm: LLM) -> Callable[[GraphState], dict]:
     def generate(state: GraphState) -> dict:
-        chunks = state["graded"] or state["chunks"]
+        chunks = state["graded"]
+        if not chunks:
+            logger.info("generate: no graded chunks after retries, honest refusal")
+            return {
+                "answer": NO_RELEVANT_CHUNKS_ANSWER,
+                "sources": [],
+                "no_relevant_chunks": True,
+            }
         sources = list(dict.fromkeys(c.source for c in chunks))
         logger.info("generate: %d chunks, sources=%s", len(chunks), sources)
         answer = llm.generate_answer(state["query"], chunks)
-        return {"answer": answer, "sources": sources}
+        return {"answer": answer, "sources": sources, "no_relevant_chunks": False}
 
     return generate
 
